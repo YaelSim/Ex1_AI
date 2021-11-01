@@ -16,14 +16,46 @@
 In search.py, you will implement generic search algorithms which are called by
 Pacman agents (in searchAgents.py).
 """
+import heapq
 
 import util
+import searchAgents
+
+
+class Node:
+    "A node is a state and the path leading to it (described as actions)."
+
+    def __init__(self, state, path=[]):
+        self.state = state
+        self.path = path.copy()
+
+    # def __eq__(self, other):
+    #     return (isinstance(other, self.__class__)
+    #             and self.state == other.state)
+
+
+class myPQWF(util.PriorityQueueWithFunction):
+    def update(self, item):
+        priority = self.priorityFunction(item)
+        # If item already in priority queue with higher priority, update its priority and rebuild the heap.
+        # If item already in priority queue with equal or lower priority, do nothing.
+        # If item not in priority queue, do the same thing as self.push.
+        for index, (p, c, i) in enumerate(self.heap):
+            if i == item:
+                if p <= priority:
+                    break
+                del self.heap[index]
+                self.heap.append((priority, c, item))
+                heapq.heapify(self.heap)
+                break
+        else:
+            self.push(item)
+
 
 class SearchProblem:
     """
     This class outlines the structure of a search problem, but doesn't implement
     any of the methods (in object-oriented terminology: an abstract class).
-
     You do not need to change anything in this class, ever.
     """
 
@@ -36,7 +68,6 @@ class SearchProblem:
     def isGoalState(self, state):
         """
           state: Search state
-
         Returns True if and only if the state is a valid goal state.
         """
         util.raiseNotDefined()
@@ -44,7 +75,6 @@ class SearchProblem:
     def getSuccessors(self, state):
         """
           state: Search state
-
         For a given state, this should return a list of triples, (successor,
         action, stepCost), where 'successor' is a successor to the current
         state, 'action' is the action required to get there, and 'stepCost' is
@@ -55,7 +85,6 @@ class SearchProblem:
     def getCostOfActions(self, actions):
         """
          actions: A list of actions to take
-
         This method returns the total cost of a particular sequence of actions.
         The sequence must be composed of legal moves.
         """
@@ -70,34 +99,93 @@ def tinyMazeSearch(problem):
     from game import Directions
     s = Directions.SOUTH
     w = Directions.WEST
-    return  [s, s, w, s, w, w, s, w]
+    return [s, s, w, s, w, w, s, w]
 
-def depthFirstSearch(problem):
+
+def depthFirstSearch(problem: SearchProblem):
     """
     Search the deepest nodes in the search tree first.
-
     Your search algorithm needs to return a list of actions that reaches the
     goal. Make sure to implement a graph search algorithm.
-
     To get started, you might want to try some of these simple commands to
     understand the search problem that is being passed in:
-
     print("Start:", problem.getStartState())
     print("Is the start a goal?", problem.isGoalState(problem.getStartState()))
     print("Start's successors:", problem.getSuccessors(problem.getStartState()))
     """
-    "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    closed = set()
+    frontier = util.Stack()
+    frontier.push(Node(problem.getStartState()))  # stack of nodes
 
-def breadthFirstSearch(problem):
+    while frontier:
+        node = frontier.pop()  # node is <state, path>
+
+        if problem.isGoalState(node.state):
+            return node.path
+        closed.add(node.state)
+        successors = problem.getSuccessors(node.state)  # <successorState, action, cost>
+        for succ in successors:
+            path = node.path.copy()
+            path.append(succ[1])
+            newNode = Node(succ[0], path)
+            if newNode.state not in closed:
+                frontier.push(newNode)
+    return None
+
+
+def breadthFirstSearch(problem: SearchProblem):
     """Search the shallowest nodes in the search tree first."""
-    "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    closed = []  # set of closed states
+    frontier = util.Queue()
+    frontier.push(Node(problem.getStartState()))  # queue of nodes
 
-def uniformCostSearch(problem):
+    while frontier:
+        node = frontier.pop()  # node is <state, path>
+
+        if problem.isGoalState(node.state):
+            return node.path
+        if node.state in closed:
+            continue
+
+        closed.append(node.state)
+
+        successors = problem.getSuccessors(node.state)  # <successorState, action, cost>
+
+        for succ in successors:
+            path = node.path.copy()
+            path.append(succ[1])
+            newNode = Node(succ[0], path)
+            if succ[0] not in closed:
+                frontier.push(newNode)
+
+    return None
+
+
+def uniformCostSearch(problem: SearchProblem):
     """Search the node of least total cost first."""
-    "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    closed = set()
+    frontier = myPQWF(lambda some_node: problem.getCostOfActions(some_node.path))
+
+    frontier.push(Node(problem.getStartState()))
+
+    while frontier:
+        node = frontier.pop()  # node is <state, path>
+
+        if node.state in closed:
+            continue
+
+        if problem.isGoalState(node.state):
+            return node.path
+        closed.add(node.state)
+        successors = problem.getSuccessors(node.state)  # <successorState, action, cost>
+        for succ in successors:
+            new_path = node.path.copy()
+            new_path.append(succ[1])
+            newNode = Node(succ[0], new_path)
+            if newNode.state not in closed:
+                frontier.update(newNode)
+    return None
+
 
 def nullHeuristic(state, problem=None):
     """
@@ -106,10 +194,32 @@ def nullHeuristic(state, problem=None):
     """
     return 0
 
+
 def aStarSearch(problem, heuristic=nullHeuristic):
     """Search the node that has the lowest combined cost and heuristic first."""
-    "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+
+    closed = set()
+    frontier = myPQWF(
+        lambda anode: problem.getCostOfActions(anode.path) + heuristic(anode.state, problem))
+    frontier.push(Node(problem.getStartState()))
+
+    while frontier:
+        node = frontier.pop()  # node is <state, path>
+
+        if node.state in closed:
+            continue
+
+        if problem.isGoalState(node.state):
+            return node.path
+        closed.add(node.state)
+        successors = problem.getSuccessors(node.state)  # <successorState, action, cost>
+        for succ in successors:
+            path = node.path.copy()
+            path.append(succ[1])
+            newNode = Node(succ[0], path)
+            if newNode.state not in closed:
+                frontier.update(newNode)
+    return None
 
 
 # Abbreviations
