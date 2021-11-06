@@ -118,7 +118,7 @@ def depthFirstSearch(problem):
             path.append(next_step[1])
             next_node = Node(next_step[0], path)
             # check if we already visited in this node
-            if next_node.state not in closed_list:
+            if next_node.get_state() not in closed_list:
                 # if not then push to the stack
                 open_list.push(next_node)
         # add node to the visited list
@@ -146,8 +146,8 @@ def breadthFirstSearch(problem):
             path.append(next_step[1])
             next_node = Node(next_step[0], path)
             # check if we already visited in this node
-            if next_node.state not in closed_list:
-                # if not then push to the stack
+            if next_node.get_state() not in closed_list:
+                # if not then push to the queue
                 open_list.push(next_node)
     return None
 
@@ -156,28 +156,26 @@ def uniformCostSearch(problem):
     "*** YOUR CODE HERE ***"
     closed_list = set()  # Set to keep track of visited nodes of graph
     open_list = util.PriorityQueue()
-    open_list.push(Node(problem.getStartState()), 0)  # Push the first state
+    open_list.push(Node(problem.getStartState()), 0)  # Push the first state and cost 0
 
     # while the queue is not empty
     while not open_list.isEmpty():
         get_node = open_list.pop()
         if problem.isGoalState(get_node.get_state()):
             return get_node.get_path()
-        # add node to the visited list
-        closed_list.add(get_node.get_state())
+        if get_node.get_state() in closed_list:
+            continue
         # get the next node
         for next_step in problem.getSuccessors(get_node.get_state()):
             path = get_node.get_path().copy()
             path.append(next_step[1])
             next_node = Node(next_step[0], path)
             # check if we already visited in this node
-            if next_node.state not in closed_list:
-                # if not then push to the stack
-                open_list.update(get_node.get_path(), next_node.get_path())
-            #     open_list.push(next_node, next_step[2])
-            # elif next_node.state in open_list:
-            #     # check if cost is better
-            #     open_list.update(get_node, next_node)
+            if next_node.get_state() not in closed_list:
+                # if not then push to the queue and add the new cost
+                open_list.push(next_node, problem.getCostOfActions(next_node.get_path()))
+        # add node to the visited list
+        closed_list.add(get_node.get_state())
     return None
 
 def nullHeuristic(state, problem=None):
@@ -191,7 +189,32 @@ def nullHeuristic(state, problem=None):
 def aStarSearch(problem, heuristic=nullHeuristic):
     """Search the node that has the lowest combined cost and heuristic first."""
     "*** YOUR CODE HERE ***"
-    util.raiseNotDefined()
+    closed_list = set()  # Set to keep track of visited nodes of graph
+    open_list = util.PriorityQueue()
+    start_node = problem.getStartState()
+    open_list.push(Node(start_node), nullHeuristic(start_node, problem))  # Push the first state
+
+    # while the queue is not empty
+    while not open_list.isEmpty():
+        get_node = open_list.pop()
+        if problem.isGoalState(get_node.get_state()):
+            return get_node.get_path()
+        if get_node.get_state() in closed_list:
+            continue
+        # get the next node
+        for next_step in problem.getSuccessors(get_node.get_state()):
+            path = get_node.get_path().copy()
+            path.append(next_step[1])
+            next_node = Node(next_step[0], path)
+            # check if we already visited in this node
+            if next_node.get_state() not in closed_list:
+                # if not then push to the queue and add the new cost
+                heuristic_cost = problem.getCostOfActions(next_node.get_path())\
+                                 + heuristic(next_node.get_state(), problem)
+                open_list.push(next_node, heuristic_cost)
+        # add node to the visited list
+        closed_list.add(get_node.get_state())
+    return None
 
 
 # Abbreviations
