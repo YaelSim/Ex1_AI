@@ -138,6 +138,8 @@ def breadthFirstSearch(problem):
         get_node = open_list.pop()
         if problem.isGoalState(get_node.get_state()):
             return get_node.get_path()
+        if get_node.get_state() in closed_list:
+            continue
         # add node to the visited list
         closed_list.add(get_node.get_state())
         # get the next node
